@@ -1,0 +1,7 @@
+{
+  "name": "Copy of FitSpot - Studio Discovery",
+  "description": "A premium fitness discovery platform helping users find gyms, yoga studios, and wellness centers nearby with AI-powered coaching.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
