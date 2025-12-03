@@ -32,11 +32,11 @@ const mapGooglePlaceToStudio = (place: any, lat: number, lng: number): Studio =>
   // Handle opening hours safely to avoid open_now deprecation warning where possible
   let isOpen = true; // Default assumption if no info
   if (place.opening_hours) {
-      if (typeof place.opening_hours.isOpen === 'function') {
-          isOpen = place.opening_hours.isOpen();
-      } else if (place.opening_hours.open_now !== undefined) {
-          isOpen = place.opening_hours.open_now;
-      }
+    if (typeof place.opening_hours.isOpen === 'function') {
+      isOpen = place.opening_hours.isOpen();
+    } else if (place.opening_hours.open_now !== undefined) {
+      isOpen = place.opening_hours.open_now;
+    }
   }
 
   return {
@@ -49,7 +49,7 @@ const mapGooglePlaceToStudio = (place: any, lat: number, lng: number): Studio =>
     address: place.vicinity || place.formatted_address || place.name,
     isVerified: false,
     isOpen: isOpen,
-    closingTime: '10:00 PM', 
+    closingTime: '10:00 PM',
     priceLevel: place.price_level || 2,
     image: photoUrl,
     gallery: [photoUrl],
@@ -64,18 +64,41 @@ const mapGooglePlaceToStudio = (place: any, lat: number, lng: number): Studio =>
     // Inject detailed mock data for tabs
     membershipPlans: MOCK_MEMBERSHIPS,
     classes: MOCK_CLASSES,
-    reviews: [] 
+    reviews: []
   };
 };
 
-export const fetchNearbyGyms = async (lat: number, lng: number, radius: number = 5000): Promise<Studio[]> => {
+// Helper to wait for Google Maps to load
+const waitForGoogleMaps = (): Promise<void> => {
   return new Promise((resolve, reject) => {
-    if (!window.google || !window.google.maps || !window.google.maps.places) {
-      console.warn('Google Maps API not loaded. Falling back to mock data.');
-      reject('Google Maps API not loaded');
+    if (window.google && window.google.maps && window.google.maps.places) {
+      resolve();
       return;
     }
 
+    let attempts = 0;
+    const interval = setInterval(() => {
+      attempts++;
+      if (window.google && window.google.maps && window.google.maps.places) {
+        clearInterval(interval);
+        resolve();
+      } else if (attempts > 20) { // Wait up to 2 seconds (20 * 100ms)
+        clearInterval(interval);
+        reject('Google Maps API failed to load within timeout');
+      }
+    }, 100);
+  });
+};
+
+export const fetchNearbyGyms = async (lat: number, lng: number, radius: number = 5000): Promise<Studio[]> => {
+  try {
+    await waitForGoogleMaps();
+  } catch (e) {
+    console.warn('Google Maps API not loaded. Falling back to mock data.');
+    throw e;
+  }
+
+  return new Promise((resolve, reject) => {
     const location = new window.google.maps.LatLng(lat, lng);
     const request = {
       location: location,
@@ -111,9 +134,9 @@ export const searchGyms = async (query: string, lat?: number, lng?: number): Pro
 
     // Only add location bias if coordinates are provided
     if (lat && lng) {
-        const location = new window.google.maps.LatLng(lat, lng);
-        request.location = location;
-        request.radius = 5000;
+      const location = new window.google.maps.LatLng(lat, lng);
+      request.location = location;
+      request.radius = 5000;
     }
 
     const service = new window.google.maps.places.PlacesService(document.createElement('div'));
@@ -148,38 +171,38 @@ export const fetchGymDetails = async (placeId: string): Promise<Studio> => {
     const request = {
       placeId: placeId,
       fields: [
-        'name', 'rating', 'user_ratings_total', 'formatted_address', 
-        'formatted_phone_number', 'website', 'photos', 'opening_hours', 
+        'name', 'rating', 'user_ratings_total', 'formatted_address',
+        'formatted_phone_number', 'website', 'photos', 'opening_hours',
         'geometry', 'types', 'reviews', 'price_level', 'utc_offset_minutes'
       ]
     };
 
     service.getDetails(request, (place: any, status: any) => {
       if (status === window.google.maps.places.PlacesServiceStatus.OK && place) {
-        
+
         // Process Photos
-        const gallery = place.photos 
-          ? place.photos.map((p: any) => p.getUrl({ maxWidth: 800 })) 
+        const gallery = place.photos
+          ? place.photos.map((p: any) => p.getUrl({ maxWidth: 800 }))
           : ['https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop'];
 
         // Determine open status and closing time
         let isOpen = false;
         let closingTime = 'N/A';
-        
+
         if (place.opening_hours) {
-           isOpen = place.opening_hours.isOpen ? place.opening_hours.isOpen() : false;
-           closingTime = isOpen ? 'Later' : 'Closed';
+          isOpen = place.opening_hours.isOpen ? place.opening_hours.isOpen() : false;
+          closingTime = isOpen ? 'Later' : 'Closed';
         }
 
         // Map Google Reviews to our Interface
         const reviews: Review[] = place.reviews ? place.reviews.map((r: any, idx: number) => ({
-            id: `g_review_${idx}`,
-            userName: r.author_name,
-            userImage: r.profile_photo_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + idx,
-            rating: r.rating,
-            date: r.relative_time_description,
-            text: r.text,
-            helpfulCount: 0
+          id: `g_review_${idx}`,
+          userName: r.author_name,
+          userImage: r.profile_photo_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + idx,
+          rating: r.rating,
+          date: r.relative_time_description,
+          text: r.text,
+          helpfulCount: 0
         })) : MOCK_REVIEWS;
 
         const studio: Studio = {
@@ -209,7 +232,7 @@ export const fetchGymDetails = async (placeId: string): Promise<Studio> => {
           classes: MOCK_CLASSES,
           reviews: reviews
         };
-        
+
         resolve(studio);
       } else {
         reject(status);
@@ -245,26 +268,26 @@ export const reverseGeocode = async (lat: number, lng: number): Promise<string> 
     const geocoder = new window.google.maps.Geocoder();
     geocoder.geocode({ location: { lat, lng } }, (results: any, status: any) => {
       if (status === 'OK' && results[0]) {
-         // Try to construct a readable address: City, State
-         let city = '';
-         let state = '';
-         
-         for (const component of results[0].address_components) {
-             if (component.types.includes('locality')) {
-                 city = component.short_name;
-             }
-             if (component.types.includes('administrative_area_level_1')) {
-                 state = component.short_name;
-             }
-         }
-         
-         if (city) {
-             resolve(state ? `${city}, ${state}` : city);
-         } else {
-             // Fallback to formatted address's first part (usually street or area)
-             const fallback = results[0].formatted_address.split(',')[0];
-             resolve(fallback);
-         }
+        // Try to construct a readable address: City, State
+        let city = '';
+        let state = '';
+
+        for (const component of results[0].address_components) {
+          if (component.types.includes('locality')) {
+            city = component.short_name;
+          }
+          if (component.types.includes('administrative_area_level_1')) {
+            state = component.short_name;
+          }
+        }
+
+        if (city) {
+          resolve(state ? `${city}, ${state}` : city);
+        } else {
+          // Fallback to formatted address's first part (usually street or area)
+          const fallback = results[0].formatted_address.split(',')[0];
+          resolve(fallback);
+        }
       } else {
         reject(status);
       }

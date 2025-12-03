@@ -1,8 +1,8 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { PlanPreferences, ChatMessage } from '../types';
+import { PlanPreferences, ChatMessage, FoodAnalysisResult } from '../types';
 
-const apiKey = process.env.API_KEY || '';
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 
 const ai = new GoogleGenAI({ apiKey });
 
@@ -50,7 +50,7 @@ export const generateAIPlan = async (prefs: PlanPreferences): Promise<string> =>
 
   try {
     const model = 'gemini-2.5-flash';
-    
+
     // Construct a detailed prompt based on available data
     let userDetails = `
     - Goal: ${prefs.goal}
@@ -106,12 +106,12 @@ export const generateAIPlan = async (prefs: PlanPreferences): Promise<string> =>
             nutrition: {
               type: Type.OBJECT,
               properties: {
-                 dailyCalories: { type: Type.STRING },
-                 macros: { type: Type.STRING, description: "e.g. 40% Carb / 30% Protein / 30% Fat" },
-                 mealPlan: {
-                   type: Type.ARRAY,
-                   items: { type: Type.STRING, description: "Example meal name" }
-                 }
+                dailyCalories: { type: Type.STRING },
+                macros: { type: Type.STRING, description: "e.g. 40% Carb / 30% Protein / 30% Fat" },
+                mealPlan: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING, description: "Example meal name" }
+                }
               }
             },
             tips: {
@@ -127,5 +127,98 @@ export const generateAIPlan = async (prefs: PlanPreferences): Promise<string> =>
   } catch (error) {
     console.error("Gemini Plan Error:", error);
     return "{}";
+  }
+};
+
+export const analyzeFoodImage = async (imageBase64: string): Promise<string> => {
+  if (!apiKey) {
+    return "Error: API Key missing.";
+  }
+
+  try {
+    const model = 'gemini-1.5-flash';
+
+    const prompt = `Analyze this image of food. Identify the main dish and estimate the nutritional content.
+    Return a JSON object with the following structure:
+    {
+      "name": "Name of the dish",
+      "calories": 0, // Total estimated calories
+      "protein": 0, // grams
+      "carbs": 0, // grams
+      "fat": 0, // grams
+      "items": ["List", "of", "detected", "ingredients"]
+    }
+    Ensure the JSON is valid and numeric values are integers.`;
+
+    const response = await ai.models.generateContent({
+      model,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType: "image/jpeg", data: imageBase64 } }
+          ]
+        }
+      ],
+      config: {
+        temperature: 0.4,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING },
+            calories: { type: Type.INTEGER },
+            protein: { type: Type.INTEGER },
+            carbs: { type: Type.INTEGER },
+            fat: { type: Type.INTEGER },
+            items: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            }
+          }
+        }
+      }
+    });
+
+    return response.text || "{}";
+  } catch (error) {
+    console.error("Gemini Vision Error:", error);
+    return "{}";
+  }
+};
+
+export const getNutritionSuggestions = async (goal: string): Promise<string> => {
+  if (!apiKey) return "[]";
+
+  try {
+    const model = 'gemini-1.5-flash';
+    const prompt = `Suggest 3 healthy food items for a user with the goal: "${goal}".
+    Return a JSON array with objects:
+    [
+      {
+        "name": "Food Name",
+        "calories": 0,
+        "protein": 0,
+        "carbs": 0,
+        "fat": 0,
+        "reason": "Why this is good"
+      }
+    ]
+    Ensure valid JSON.`;
+
+    const response = await ai.models.generateContent({
+      model,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        temperature: 0.7,
+        responseMimeType: "application/json",
+      }
+    });
+
+    return response.text || "[]";
+  } catch (error) {
+    console.error("Gemini Suggestions Error:", error);
+    return "[]";
   }
 };

@@ -1,291 +1,456 @@
-
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, ChevronDown, Coffee, AlignJustify, Utensils, Edit, Sparkles, Share2, CheckSquare, Square, Lightbulb, Salad, Beef, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, ChevronDown, Coffee, AlignJustify, Utensils, Edit, Sparkles, Share2, CheckSquare, Square, Lightbulb, Salad, Beef, Trash2, Apple, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { PLANNED_MEALS } from '../constants';
+import { PLANNED_MEALS, FOOD_DATABASE } from '../constants';
 import { GroceryItem, DailyMealLog, MealItem } from '../types';
 import { getGroceries, toggleGroceryItem, addGroceryItem, deleteGroceryItem, getDailyLog, addMealToLog } from '../services/storageService';
 
+import { analyzeFoodImage, getNutritionSuggestions } from '../services/geminiService';
+import { FoodAnalysisResult, FoodSuggestion } from '../types';
+
 export const Nutrition: React.FC = () => {
-  const navigate = useNavigate();
-  const [groceryList, setGroceryList] = useState<GroceryItem[]>([]);
-  const [dailyLog, setDailyLog] = useState<DailyMealLog[]>([]);
-  const [stats, setStats] = useState({ calories: 0, protein: 0 });
+    const navigate = useNavigate();
+    const [groceryList, setGroceryList] = useState<GroceryItem[]>([]);
+    const [dailyLog, setDailyLog] = useState<DailyMealLog[]>([]);
+    const [stats, setStats] = useState({ calories: 0, protein: 0 });
 
-  useEffect(() => {
-    // Load data from storage
-    const loadedGroceries = getGroceries();
-    const loadedLog = getDailyLog();
-    setGroceryList(loadedGroceries);
-    setDailyLog(loadedLog);
-  }, []);
+    // AI Vision State
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [scannedResult, setScannedResult] = useState<FoodAnalysisResult | null>(null);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Update stats whenever dailyLog changes
-  useEffect(() => {
-    let cal = 0;
-    let prot = 0;
-    dailyLog.forEach(cat => {
-        cat.items.forEach(item => {
-            cal += item.calories;
-            prot += item.protein || 0;
+    // AI Suggestions State
+    const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+    const [suggestions, setSuggestions] = useState<FoodSuggestion[]>([]);
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+
+    // Food Search Modal State
+    const [searchQuery, setSearchQuery] = useState('');
+    const [mealCategory, setMealCategory] = useState('Breakfast');
+
+    useEffect(() => {
+        const loadData = async () => {
+            const loadedGroceries = await getGroceries();
+            const loadedLog = await getDailyLog();
+            setGroceryList(loadedGroceries);
+            setDailyLog(loadedLog);
+        };
+        loadData();
+    }, []);
+
+    // Update stats whenever dailyLog changes
+    useEffect(() => {
+        let cal = 0;
+        let prot = 0;
+        dailyLog.forEach(cat => {
+            cat.items.forEach(item => {
+                cal += item.calories;
+                prot += item.protein || 0;
+            });
         });
-    });
-    setStats({ calories: cal, protein: prot });
-  }, [dailyLog]);
+        setStats({ calories: cal, protein: prot });
+    }, [dailyLog]);
 
-  const handleToggleGrocery = (id: string) => {
-    const updated = toggleGroceryItem(id);
-    setGroceryList(updated);
-  };
+    const handleToggleGrocery = async (id: string) => {
+        const item = groceryList.find(i => i.id === id);
+        if (item) {
+            // Optimistic update
+            const updated = groceryList.map(i => i.id === id ? { ...i, checked: !i.checked } : i);
+            setGroceryList(updated);
+            await toggleGroceryItem(id, item.checked);
+        }
+    };
 
-  const handleAddGrocery = () => {
-    const name = window.prompt("Enter item name:");
-    if (name && name.trim()) {
-        const updated = addGroceryItem(name.trim());
-        setGroceryList(updated);
-    }
-  };
+    const handleAddGrocery = async () => {
+        const name = window.prompt("Enter item name:");
+        if (name && name.trim()) {
+            const newItem = await addGroceryItem(name.trim());
+            setGroceryList([newItem, ...groceryList]);
+        }
+    };
 
-  const handleDeleteGrocery = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    if (window.confirm("Remove this item?")) {
-        const updated = deleteGroceryItem(id);
-        setGroceryList(updated);
-    }
-  };
+    const handleDeleteGrocery = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        if (window.confirm("Remove this item?")) {
+            // Optimistic update
+            setGroceryList(groceryList.filter(i => i.id !== id));
+            await deleteGroceryItem(id);
+        }
+    };
 
-  const handleAddMealFromPlan = (category: string, item: MealItem) => {
-    const updatedLog = addMealToLog(category, item);
-    setDailyLog(updatedLog);
-    // Visual feedback could be added here
-  };
+    const handleAddMealFromPlan = async (category: string, item: MealItem) => {
+        const updatedLog = await addMealToLog(category, item);
+        setDailyLog(updatedLog);
+        // Visual feedback could be added here
+    };
 
-  const GroceryItemRow = ({ item }: { item: GroceryItem }) => (
-    <div 
-      onClick={() => handleToggleGrocery(item.id)}
-      className="flex items-center justify-between p-3 hover:bg-white/5 rounded-xl cursor-pointer transition border-b border-gray-800/50 last:border-0 group"
-    >
-      <div className="flex items-center gap-3">
-        {item.checked ? (
-          <div className="bg-primary text-black rounded-md p-0.5">
-             <CheckSquare size={18} />
-          </div>
-        ) : (
-          <Square size={20} className="text-gray-500" />
-        )}
-        <div className="flex flex-col">
-            <span className={`text-sm ${item.checked ? 'text-gray-500 line-through' : 'text-white'}`}>
-            {item.name}
-            </span>
-            <span className="text-[10px] text-gray-500">{item.category}</span>
-        </div>
-      </div>
-      <div className="flex items-center gap-3">
-        <span className="text-xs text-gray-400 font-medium bg-secondary px-2 py-1 rounded">{item.quantity}</span>
-        <button onClick={(e) => handleDeleteGrocery(e, item.id)} className="text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition">
-            <Trash2 size={16} />
-        </button>
-      </div>
-    </div>
-  );
+    // AI Vision Handlers
+    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
 
-  const MealRow = ({ icon: Icon, title, description, calories, isLogged, onAdd }: any) => (
-    <div className={`flex items-center justify-between p-4 rounded-2xl border ${isLogged ? 'bg-surface border-secondary' : 'bg-transparent border-transparent hover:bg-surface/50'}`}>
-        <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isLogged ? 'bg-primary/20 text-primary' : 'bg-secondary text-gray-400'}`}>
-                <Icon size={20} />
-            </div>
-            <div>
-                <h4 className="font-bold text-white text-sm">{title}</h4>
-                <p className="text-xs text-muted max-w-[200px] truncate">{description}</p>
-            </div>
-        </div>
-        {isLogged ? (
-            <span className="text-sm font-bold text-white">{calories} kcal</span>
-        ) : (
-            <button 
-                onClick={onAdd}
-                className="w-8 h-8 rounded-full bg-secondary border border-gray-700 flex items-center justify-center text-primary hover:bg-primary hover:text-black transition"
-            >
-                <Plus size={16} />
-            </button>
-        )}
-    </div>
-  );
+        setIsAnalyzing(true);
+        try {
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+                const base64String = (reader.result as string).split(',')[1];
+                const resultJson = await analyzeFoodImage(base64String);
+                const result = JSON.parse(resultJson) as FoodAnalysisResult;
+                setScannedResult(result);
+                setIsAnalyzing(false);
+            };
+            reader.readAsDataURL(file);
+        } catch (error) {
+            console.error("Analysis failed", error);
+            setIsAnalyzing(false);
+            alert("Failed to analyze image. Please try again.");
+        }
+    };
 
-  const getMealIcon = (category: string) => {
-      switch(category) {
-          case 'Breakfast': return Coffee;
-          case 'Lunch': return Salad;
-          case 'Dinner': return Beef;
-          default: return Utensils;
-      }
-  };
+    const confirmScannedMeal = async () => {
+        if (!scannedResult) return;
 
-  const calPercentage = Math.min((stats.calories / 2500) * 100, 100);
-  const protPercentage = Math.min((stats.protein / 180) * 100, 100);
+        const newItem: MealItem = {
+            id: Date.now().toString(),
+            name: scannedResult.name,
+            calories: scannedResult.calories,
+            protein: scannedResult.protein,
+            notes: `AI Detected: ${scannedResult.items.join(', ')}`
+        };
 
-  return (
-    <div className="min-h-screen bg-background pb-24 font-sans">
-      {/* Header */}
-      <header className="px-6 pt-8 pb-4 bg-background sticky top-0 z-20">
-        <div className="flex items-center justify-between mb-6">
-           <button onClick={() => navigate('/dashboard')} className="text-white hover:text-primary transition">
-             <AlignJustify size={24} />
-           </button>
-           <h1 className="text-lg font-bold text-white">Nutrition Hub</h1>
-           <div className="w-8 h-8 rounded-full bg-secondary overflow-hidden border border-gray-700">
-              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" alt="Profile" />
-           </div>
-        </div>
+        const hour = new Date().getHours();
+        let category = 'Snack';
+        if (hour < 11) category = 'Breakfast';
+        else if (hour < 15) category = 'Lunch';
+        else if (hour < 21) category = 'Dinner';
 
-        <h2 className="text-2xl font-bold text-white mb-6">Good morning, Alex!</h2>
+        const updatedLog = await addMealToLog(category, newItem);
+        setDailyLog(updatedLog);
+        setScannedResult(null);
+    };
 
-        {/* Top Stats Cards */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
-            <div className="bg-surface border border-secondary p-5 rounded-3xl relative overflow-hidden">
-                <p className="text-xs text-gray-400 font-bold mb-1">Calories</p>
-                <div className="flex items-baseline gap-1 mb-3">
-                    <span className="text-3xl font-bold text-white">{stats.calories}</span>
-                    <span className="text-xs text-gray-500">/ 2500 kcal</span>
-                </div>
-                {/* Progress Bar */}
-                <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${calPercentage}%` }}></div>
-                </div>
-            </div>
+    const handleGetSuggestions = async () => {
+        const goal = window.prompt("What is your current goal? (e.g., Muscle Gain, Weight Loss, Keto)");
+        if (!goal) return;
 
-            <div className="bg-surface border border-secondary p-5 rounded-3xl relative overflow-hidden">
-                <p className="text-xs text-gray-400 font-bold mb-1">Protein</p>
-                <div className="flex items-baseline gap-1 mb-3">
-                    <span className="text-3xl font-bold text-white">{stats.protein}</span>
-                    <span className="text-xs text-gray-500">/ 180 g</span>
-                </div>
-                {/* Progress Bar */}
-                <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full transition-all duration-500" style={{ width: `${protPercentage}%` }}></div>
-                </div>
-            </div>
-        </div>
-      </header>
+        setIsLoadingSuggestions(true);
+        setIsSuggestionsOpen(true);
+        const results = await getNutritionSuggestions(goal);
+        try {
+            const parsed = JSON.parse(results);
+            setSuggestions(parsed);
+        } catch (e) {
+            console.error("Failed to parse suggestions", e);
+            alert("Failed to get suggestions. Please try again.");
+            setIsSuggestionsOpen(false);
+        }
+        setIsLoadingSuggestions(false);
+    };
 
-      <div className="px-6 space-y-8">
-        
-        {/* Your Meal Plan */}
-        <section>
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-white">Your Meal Plan</h3>
-                <button className="flex items-center gap-1 text-xs text-primary bg-primary/10 px-3 py-1.5 rounded-full font-medium">
-                    This Week <ChevronDown size={14} />
+    const filteredFoods = searchQuery.length > 0
+        ? FOOD_DATABASE.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
+        : FOOD_DATABASE;
+
+    const getMealIcon = (category: string) => {
+        switch (category) {
+            case 'Breakfast': return Coffee;
+            case 'Lunch': return Salad;
+            case 'Dinner': return Beef;
+            case 'Snack': return Apple;
+            default: return Utensils;
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-[#05100a] flex flex-col font-sans">
+            {/* Hidden File Input */}
+            <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handleImageUpload}
+            />
+
+            {/* Header */}
+            <div className="px-6 py-6 flex items-center justify-between sticky top-0 bg-[#05100a] z-20">
+                <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 text-white hover:text-primary transition">
+                    <ArrowLeft size={24} />
                 </button>
+                <h2 className="text-xl font-bold text-white">Food Search</h2>
+                <div className="flex gap-2">
+                    <button 
+                        onClick={handleGetSuggestions}
+                        className="p-2 text-[#00E376] bg-[#0f291a] rounded-full hover:bg-[#163a25] transition"
+                    >
+                        <Lightbulb size={20} />
+                    </button>
+                     <button 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="p-2 text-[#00E376] bg-[#0f291a] rounded-full hover:bg-[#163a25] transition"
+                    >
+                        <Sparkles size={20} />
+                    </button>
+                </div>
             </div>
 
-            <div className="bg-surface border border-secondary rounded-3xl p-2 space-y-1 mb-4">
-                <div className="flex justify-between items-center px-4 py-2 text-xs text-gray-500 font-medium">
-                    <span>Today's Plan</span>
-                    <span>Click + to log</span>
+            {/* Search & Filters */}
+            <div className="px-6 pb-4 space-y-4 bg-[#05100a] z-10">
+                <div className="relative">
+                    <Search className="absolute left-4 top-3.5 text-[#2d5c40]" size={20} />
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search for food, e.g., 'avocado'"
+                        className="w-full bg-[#0f291a] border border-transparent rounded-2xl py-3 pl-12 pr-4 text-white placeholder:text-[#2d5c40] focus:outline-none focus:border-primary/50 transition"
+                    />
                 </div>
-                {PLANNED_MEALS.map((meal, idx) => (
-                    <MealRow 
-                        key={idx}
-                        icon={getMealIcon(meal.category)} 
-                        title={meal.category} 
-                        description={meal.items.map(i => i.name).join(', ')} 
-                        onAdd={() => handleAddMealFromPlan(meal.category, meal.items[0])}
+
+                {/* Filter Chips */}
+                <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+                    {['All', 'High Protein', 'Low Carb', 'Veg'].map(filter => (
+                        <button
+                            key={filter}
+                            className={`px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition ${
+                                filter === 'All'
+                                    ? 'bg-[#00E376] text-black'
+                                    : 'bg-[#0f291a] text-white hover:bg-[#163a25]'
+                            }`}
+                        >
+                            {filter}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Food List */}
+            <div className="flex-1 overflow-y-auto px-6 pb-24 space-y-4">
+                {filteredFoods.map((food, idx) => (
+                    <FoodCard 
+                        key={idx} 
+                        food={food} 
+                        onLog={(servings) => {
+                            const newItem: MealItem = {
+                                id: Date.now().toString(),
+                                name: food.name,
+                                calories: Math.round(food.calories * servings),
+                                protein: Math.round(food.protein * servings),
+                                carbs: Math.round(food.carbs * servings),
+                                fat: Math.round(food.fat * servings),
+                                image: food.image
+                            };
+                            addMealToLog(mealCategory, newItem).then(updated => {
+                                setDailyLog(updated);
+                                alert(`Logged ${newItem.name}!`); // Simple feedback
+                            });
+                        }} 
                     />
                 ))}
             </div>
 
-            <div className="flex gap-3">
-                <button className="flex-1 bg-primary text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 text-sm hover:opacity-90 transition">
-                    <Edit size={16} /> Manage Plan
-                </button>
-                <button className="flex-1 bg-surface border border-secondary text-primary font-bold py-3 rounded-xl flex items-center justify-center gap-2 text-sm hover:bg-gray-800 transition">
-                    <Sparkles size={16} /> AI Suggestions
-                </button>
-            </div>
-        </section>
+            {/* Analysis Modal */}
+            {(isAnalyzing || scannedResult) && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
+                    <div className="bg-[#0f291a] border border-white/5 rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+                        {isAnalyzing ? (
+                            <div className="text-center py-8">
+                                <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                                <h3 className="text-xl font-bold text-white mb-2">Analyzing Food...</h3>
+                                <p className="text-gray-400 text-sm">Identifying ingredients and macros</p>
+                            </div>
+                        ) : scannedResult && (
+                            <div className="animate-in zoom-in-95 duration-300">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <p className="text-xs text-primary font-bold uppercase tracking-wider mb-1">AI Detected</p>
+                                        <h3 className="text-2xl font-bold text-white">{scannedResult.name}</h3>
+                                    </div>
+                                    <div className="bg-white/5 p-2 rounded-full" onClick={() => setScannedResult(null)}>
+                                        <Trash2 size={18} className="text-gray-400" />
+                                    </div>
+                                </div>
 
-        {/* Grocery List */}
-        <section>
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-white">Grocery List</h3>
-                <button className="text-xs text-primary font-bold flex items-center gap-1 hover:underline">
-                    <Plus size={14} /> Generate List
-                </button>
-            </div>
+                                <div className="grid grid-cols-2 gap-3 mb-6">
+                                    <div className="bg-white/5 p-3 rounded-xl text-center">
+                                        <p className="text-2xl font-bold text-white">{scannedResult.calories}</p>
+                                        <p className="text-xs text-gray-500 uppercase font-bold">Calories</p>
+                                    </div>
+                                    <div className="bg-white/5 p-3 rounded-xl text-center">
+                                        <p className="text-2xl font-bold text-white">{scannedResult.protein}g</p>
+                                        <p className="text-xs text-gray-500 uppercase font-bold">Protein</p>
+                                    </div>
+                                    <div className="bg-white/5 p-3 rounded-xl text-center">
+                                        <p className="text-2xl font-bold text-white">{scannedResult.carbs}g</p>
+                                        <p className="text-xs text-gray-500 uppercase font-bold">Carbs</p>
+                                    </div>
+                                    <div className="bg-white/5 p-3 rounded-xl text-center">
+                                        <p className="text-2xl font-bold text-white">{scannedResult.fat}g</p>
+                                        <p className="text-xs text-gray-500 uppercase font-bold">Fat</p>
+                                    </div>
+                                </div>
 
-            <div className="bg-surface border border-secondary rounded-3xl p-4">
-                <div className="space-y-1 max-h-64 overflow-y-auto hide-scrollbar">
-                    {groceryList.map((item) => (
-                        <GroceryItemRow key={item.id} item={item} />
-                    ))}
-                    {groceryList.length === 0 && <p className="text-gray-500 text-sm text-center py-4">List is empty.</p>}
+                                <div className="mb-6">
+                                    <p className="text-xs text-gray-400 mb-2">Ingredients:</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {scannedResult.items.map((ing, i) => (
+                                            <span key={i} className="text-xs text-white bg-white/10 px-2 py-1 rounded-md">{ing}</span>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={confirmScannedMeal}
+                                    className="w-full bg-primary text-black font-bold py-4 rounded-xl hover:opacity-90 transition shadow-[0_0_20px_rgba(0,227,118,0.4)] flex items-center justify-center gap-2"
+                                >
+                                    <CheckSquare size={20} /> Add to Log
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
+            )}
 
-                <div className="mt-6 flex gap-3">
-                    <button onClick={handleAddGrocery} className="flex-1 bg-secondary text-white font-bold py-3 rounded-xl text-sm border border-gray-700 flex items-center justify-center gap-2 hover:bg-gray-700">
-                        <Plus size={16} /> Add Item
-                    </button>
-                    <button className="flex-1 bg-secondary text-white font-bold py-3 rounded-xl text-sm border border-gray-700 flex items-center justify-center gap-2 hover:bg-gray-700">
-                        <Share2 size={16} /> Share
-                    </button>
+            {/* Suggestions Modal */}
+            {isSuggestionsOpen && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
+                    <div className="bg-[#0f291a] border border-white/5 rounded-3xl p-6 w-full max-w-sm shadow-2xl max-h-[80vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold text-white">AI Suggestions</h3>
+                            <button onClick={() => setIsSuggestionsOpen(false)} className="p-1 text-gray-400 hover:text-white">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {isLoadingSuggestions ? (
+                            <div className="text-center py-8">
+                                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                                <p className="text-gray-400 text-sm">Curating healthy options...</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {suggestions.map((item, idx) => (
+                                    <div key={idx} className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <h4 className="font-bold text-white">{item.name}</h4>
+                                            <span className="text-[#00E376] text-xs font-bold">{item.calories} kcal</span>
+                                        </div>
+                                        <p className="text-xs text-gray-400 mb-3 italic">"{item.reason}"</p>
+                                        <div className="flex gap-2 mb-3">
+                                            <div className="bg-black/20 px-2 py-1 rounded text-[10px] text-blue-400 font-bold">P: {item.protein}g</div>
+                                            <div className="bg-black/20 px-2 py-1 rounded text-[10px] text-orange-400 font-bold">C: {item.carbs}g</div>
+                                            <div className="bg-black/20 px-2 py-1 rounded text-[10px] text-purple-400 font-bold">F: {item.fat}g</div>
+                                        </div>
+                                        <button 
+                                            onClick={() => {
+                                                const newItem: MealItem = {
+                                                    id: Date.now().toString(),
+                                                    name: item.name,
+                                                    calories: item.calories,
+                                                    protein: item.protein,
+                                                    carbs: item.carbs,
+                                                    fat: item.fat,
+                                                };
+                                                addMealToLog(mealCategory, newItem).then(updated => {
+                                                    setDailyLog(updated);
+                                                    alert(`Logged ${item.name}!`);
+                                                    setIsSuggestionsOpen(false);
+                                                });
+                                            }}
+                                            className="w-full bg-[#00E376]/10 text-[#00E376] font-bold py-2 rounded-xl text-sm hover:bg-[#00E376]/20 transition"
+                                        >
+                                            Add to Log
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
-            </div>
-        </section>
+            )}
+        </div>
+    );
+};
 
-        {/* Today's Log */}
-        <section>
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-white">Today's Log</h3>
-                <div className="bg-secondary p-1.5 rounded-lg text-gray-400">
-                    <AlignJustify size={16} />
+const FoodCard = ({ food, onLog }: { food: any, onLog: (servings: number) => void }) => {
+    const [servings, setServings] = useState(1);
+    
+    // Simple logic to generate advice based on macros
+    const getAdvice = () => {
+        const advice = [];
+        if (food.protein > 15) advice.push({ text: "Great for Muscle Gain", color: "text-blue-400", bg: "bg-blue-400/10" });
+        if (food.calories < 150) advice.push({ text: "Good for Weight Loss", color: "text-green-400", bg: "bg-green-400/10" });
+        if (food.carbs > 30) advice.push({ text: "High Energy / Pre-workout", color: "text-orange-400", bg: "bg-orange-400/10" });
+        if (food.fat > 15) advice.push({ text: "Keto Friendly / High Satiety", color: "text-purple-400", bg: "bg-purple-400/10" });
+        
+        if (advice.length === 0) advice.push({ text: "Balanced Nutrition", color: "text-gray-400", bg: "bg-white/5" });
+        return advice;
+    };
+
+    const adviceList = getAdvice();
+
+    return (
+        <div className="bg-[#0f291a] rounded-3xl p-4 relative overflow-hidden">
+            <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-white/5 overflow-hidden">
+                         {food.image ? <img src={food.image} alt={food.name} className="w-full h-full object-cover" /> : <Utensils className="p-2 text-gray-500"/>}
+                    </div>
+                    <div>
+                        <h4 className="text-white font-bold">{food.name}</h4>
+                        <p className="text-[#00E376] text-xs">per 100g</p>
+                    </div>
+                </div>
+                <div className="text-right">
+                    <span className="text-white font-bold text-lg">{food.calories}</span>
+                    <span className="text-[#00E376] text-xs font-bold ml-1">kcal</span>
                 </div>
             </div>
             
-            <div className="space-y-3">
-                {dailyLog.map((section, idx) => {
-                    const Icon = getMealIcon(section.category);
-                    return (
-                        <MealRow 
-                            key={idx}
-                            icon={Icon}
-                            title={section.category}
-                            description={section.items.map(i => i.name).join(', ')}
-                            calories={section.totalCalories}
-                            isLogged={true}
-                        />
-                    );
-                })}
-                {dailyLog.length === 0 && <p className="text-gray-500 text-sm text-center py-4">No meals logged today yet.</p>}
+            {/* Macros */}
+            <div className="flex gap-4 mb-4 pl-16">
+                <div className="text-center">
+                    <p className="text-blue-400 font-bold text-sm">{food.protein}g</p>
+                    <p className="text-[#2d5c40] text-[10px] uppercase font-bold">Protein</p>
+                </div>
+                <div className="text-center">
+                    <p className="text-orange-400 font-bold text-sm">{food.carbs}g</p>
+                    <p className="text-[#2d5c40] text-[10px] uppercase font-bold">Carbs</p>
+                </div>
+                <div className="text-center">
+                    <p className="text-purple-400 font-bold text-sm">{food.fat}g</p>
+                    <p className="text-[#2d5c40] text-[10px] uppercase font-bold">Fat</p>
+                </div>
             </div>
-        </section>
 
-        {/* Lean Bulk Phase Card */}
-        <div className="bg-gradient-to-br from-green-900/40 to-surface border border-primary/20 p-6 rounded-3xl">
-            <h3 className="font-bold text-white text-lg mb-2">Lean Bulk Phase 2</h3>
-            <p className="text-gray-400 text-sm mb-6 leading-relaxed">
-                Your current AI-generated diet plan is active. Ends in 4 weeks.
-            </p>
-            <button className="bg-primary text-black font-bold px-6 py-2 rounded-full text-sm hover:scale-105 transition">
-                View Plan
-            </button>
-        </div>
-
-        {/* AI Insights */}
-        <div className="bg-surface border border-secondary p-6 rounded-3xl mb-8">
-            <div className="flex items-center gap-3 mb-3">
-                <Sparkles className="text-primary" size={20} />
-                <h3 className="font-bold text-white">AI Coach Insights</h3>
+            {/* Dietary Advice */}
+            <div className="mb-4 pl-16 flex flex-wrap gap-2">
+                {adviceList.map((item, idx) => (
+                    <span key={idx} className={`text-[10px] font-bold px-2 py-1 rounded-md ${item.color} ${item.bg}`}>
+                        {item.text}
+                    </span>
+                ))}
             </div>
-            <p className="text-sm text-gray-300 leading-relaxed">
-                {stats.protein > 100 
-                  ? "You're consistently hitting your protein goal! Great job. Consider adding a handful of almonds as a snack to boost your healthy fat intake."
-                  : "Try to prioritize protein in your next meal to stay on track for your muscle building goals."}
-            </p>
-        </div>
 
-      </div>
-    </div>
-  );
+            {/* Actions */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 px-2">
+                    <span className="text-[#00E376] text-sm">Serving:</span>
+                    <input 
+                        type="number" 
+                        value={servings} 
+                        onChange={e => setServings(Number(e.target.value))}
+                        className="w-12 bg-[#14301f] rounded-lg text-center text-white font-bold py-1 focus:outline-none focus:border-primary"
+                    />
+                    <span className="text-[#2d5c40] text-xs">x 100g</span>
+                </div>
+                <button 
+                    onClick={() => onLog(servings)}
+                    className="bg-[#00E376] text-black font-bold px-6 py-2 rounded-xl text-sm hover:opacity-90 transition flex items-center gap-2"
+                >
+                    <Plus size={16} /> Log
+                </button>
+            </div>
+        </div>
+    );
 };

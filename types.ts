@@ -91,6 +91,8 @@ export interface MealItem {
   name: string;
   calories: number;
   protein?: number;
+  carbs?: number;
+  fat?: number;
   notes?: string;
   image?: string;
 }
@@ -158,7 +160,9 @@ export interface SavedPlan extends GeneratedPlan {
 
 export interface Booking {
   id: string;
+  studioId?: string;
   studioName: string;
+  image?: string;
   date: string;
   time: string;
   status: 'confirmed' | 'completed' | 'cancelled';
@@ -180,4 +184,24 @@ export interface UserProfile {
   height: string;
   weight: string;
   goal: string;
+  isCoach?: boolean;
+  coachVerificationStatus?: 'pending' | 'verified' | 'rejected' | 'none';
+}
+
+export interface FoodAnalysisResult {
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  items: string[];
+}
+
+export interface FoodSuggestion {
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  reason: string;
 }

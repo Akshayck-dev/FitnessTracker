@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+:root {
+  /* Light Mode Defaults */
+  --color-background: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-primary: #00E376;
+  --color-secondary: #E2E8F0;
+  --color-text: #0F172A;
+  --color-muted: #64748B;
+  --color-accent-orange: #F97316;
+  --color-accent-blue: #3B82F6;
+  --color-accent-teal: #14B8A6;
+
+  --shadow-neon: 0 0 10px rgba(0, 227, 118, 0.3);
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.dark {
+  /* Dark Mode Overrides */
+  --color-background: #050B0A;
+  --color-surface: #0D1412;
+  --color-primary: #00E376;
+  --color-secondary: #1C2625;
+  --color-text: #F1F5F9;
+  --color-muted: #94A3B8;
+  --color-accent-orange: #F97316;
+  --color-accent-blue: #3B82F6;
+  --color-accent-teal: #14B8A6;
+
+  --shadow-neon: 0 0 10px rgba(0, 227, 118, 0.3);
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+}
+
+@theme {
+  --color-background: var(--color-background);
+  --color-surface: var(--color-surface);
+  --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
+  --color-text: var(--color-text);
+  --color-muted: var(--color-muted);
+  --color-accent-orange: var(--color-accent-orange);
+  --color-accent-blue: var(--color-accent-blue);
+  --color-accent-teal: var(--color-accent-teal);
+
+  --font-sans: Inter, sans-serif;
+
+  --shadow-neon: var(--shadow-neon);
+  --shadow-card: var(--shadow-card);
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-background);
+  color: var(--color-text);
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Glassmorphism Utilities */
+.glass {
+  background: rgba(13, 20, 18, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glass-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-secondary);
+  box-shadow: var(--shadow-card);
+}
