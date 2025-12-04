@@ -8,6 +8,32 @@
     <!-- Google Maps API -->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAzUpxTaGLN3uFCLtwimtjpAtODz_7GftE&libraries=places"
         async defer></script>
+    <script>
+        window.onerror = function (msg, url, lineNo, columnNo, error) {
+            var container = document.getElementById('error-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'error-container';
+                container.style.position = 'fixed';
+                container.style.top = '0';
+                container.style.left = '0';
+                container.style.width = '100%';
+                container.style.height = '100%';
+                container.style.backgroundColor = 'rgba(0,0,0,0.9)';
+                container.style.color = 'red';
+                container.style.zIndex = '999999';
+                container.style.padding = '20px';
+                container.style.overflow = 'auto';
+                container.style.fontFamily = 'monospace';
+                document.body.appendChild(container);
+            }
+            container.innerHTML += '<h3>Error: ' + msg + '</h3><p>' + url + ':' + lineNo + ':' + columnNo + '</p><pre>' + (error && error.stack ? error.stack : '') + '</pre><hr>';
+            return false;
+        };
+        window.addEventListener('unhandledrejection', function (event) {
+            window.onerror(event.reason ? event.reason.message : 'Unhandled Rejection', '', '', '', event.reason);
+        });
+    </script>
 </head>
 
 <body>

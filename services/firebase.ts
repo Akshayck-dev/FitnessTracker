@@ -15,12 +15,28 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
-export const db = getFirestore(app);
-export const messaging = getMessaging(app);
+let app;
+let analytics;
+let auth;
+let googleProvider;
+let db;
+let messaging;
+
+try {
+  app = initializeApp(firebaseConfig);
+  analytics = getAnalytics(app);
+  auth = getAuth(app);
+  googleProvider = new GoogleAuthProvider();
+  db = getFirestore(app);
+  messaging = getMessaging(app);
+} catch (error) {
+  console.error("Firebase initialization failed:", error);
+  // Fallback or re-throw depending on severity. 
+  // For now, let's log it so the global handler catches it if it's critical, 
+  // or allow the app to load with limited functionality.
+}
+
+export { auth, googleProvider, db, messaging };
 
 export const signInWithGoogle = async () => {
   try {
