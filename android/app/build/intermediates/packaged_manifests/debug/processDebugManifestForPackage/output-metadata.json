@@ -4,7 +4,7 @@
     "type": "PACKAGED_MANIFESTS",
     "kind": "Directory"
   },
-  "applicationId": "com.fitspot.app",
+  "applicationId": "com.FitSpotter.app",
   "variantName": "debug",
   "elements": [
     {
