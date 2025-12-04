@@ -1,0 +1,48 @@
+[33mcommit 5beb3a64bad836088afb25e59a3429547beeb818[m
+Author: Akshay C k <akshack008@gmail.com>
+Date:   Sun Nov 30 20:46:17 2025 +0530
+
+    feat: Set up FitSpot project with Vite and React
+    
+    Initializes the FitSpot project structure, including:
+    - Vite for module bundling and development server.
+    - React for building the user interface.
+    - TypeScript for static typing.
+    - Tailwind CSS for styling with a custom theme.
+    - Essential dependencies for AI integration, routing, and UI components.
+    
+    Includes basic configuration files (tsconfig.json, vite.config.ts, .gitignore, index.html, index.tsx) and placeholder types and constants.
+
+A	.gitignore
+A	App.tsx
+M	README.md
+A	components/AICoach.tsx
+A	components/BookingModal.tsx
+A	components/MapView.tsx
+A	components/PlanDisplay.tsx
+A	components/StudioCard.tsx
+A	constants.ts
+A	index.html
+A	index.tsx
+A	metadata.json
+A	package.json
+A	pages/AIChat.tsx
+A	pages/Auth.tsx
+A	pages/Bookings.tsx
+A	pages/Dashboard.tsx
+A	pages/GeneratePlan.tsx
+A	pages/Home.tsx
+A	pages/Notifications.tsx
+A	pages/Nutrition.tsx
+A	pages/Onboarding.tsx
+A	pages/Profile.tsx
+A	pages/SavedPlanDetails.tsx
+A	pages/StudioDetails.tsx
+A	pages/Tracker.tsx
+A	services/firebase.ts
+A	services/geminiService.ts
+A	services/placesService.ts
+A	services/storageService.ts
+A	tsconfig.json
+A	types.ts
+A	vite.config.ts

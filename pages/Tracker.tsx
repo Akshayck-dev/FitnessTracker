@@ -296,7 +296,7 @@ export const Tracker: React.FC = () => {
             </select>
           </div>
 
-          <div className="h-48 w-full">
+          <div className="h-48 w-full" style={{ height: 192, width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={weeklyStats}>
                 <XAxis

@@ -234,7 +234,7 @@ export const Dashboard: React.FC = () => {
                   <h3 className="text-2xl font-bold text-white">Last 7 Days</h3>
                </div>
 
-               <div className="h-40 w-full">
+               <div className="h-40 w-full" style={{ height: 160, width: '100%' }}>
                   <ResponsiveContainer width="100%" height="100%">
                      <BarChart data={stats.consistency}>
                         <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }} dy={10} />

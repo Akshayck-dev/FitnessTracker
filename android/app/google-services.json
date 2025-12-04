@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "733811785720",
+    "project_id": "fitspotter-a9f7b",
+    "storage_bucket": "fitspotter-a9f7b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:733811785720:android:9c70f927e6dff839f1e00d",
+        "android_client_info": {
+          "package_name": "com.FitSpotter.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAomRwsEobaazfc6IcSih2lEvD_s_fqC9A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

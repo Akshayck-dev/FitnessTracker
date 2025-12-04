@@ -137,12 +137,20 @@ const NotificationManager = () => {
   React.useEffect(() => {
     const requestPermission = async () => {
       try {
+        const vapidKey = 'BM_U_VAPID_KEY_HERE_REPLACE_ME';
+
+        // Check if VAPID key is still the placeholder
+        if (vapidKey === 'BM_U_VAPID_KEY_HERE_REPLACE_ME') {
+          console.warn('VAPID key is not configured. Push notifications will be disabled.');
+          return;
+        }
+
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
           console.log('Notification permission granted.');
           // Get FCM Token
           const token = await getToken(messaging, {
-            vapidKey: 'BM_U_VAPID_KEY_HERE_REPLACE_ME'
+            vapidKey: vapidKey
           });
           console.log('FCM Token:', token);
         } else {
