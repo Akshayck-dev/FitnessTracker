@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.fitspot.app',
+  appId: 'com.FitSpotter.app',
   appName: 'FitSpot',
   webDir: 'dist'
 };
